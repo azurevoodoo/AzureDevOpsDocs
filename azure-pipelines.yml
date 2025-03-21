@@ -1,0 +1,30 @@
+trigger:
+  - main
+
+schedules:
+- cron: "0 22 * * *"
+  displayName: "Daily build at 22:00"
+  branches:
+    include:
+      - main
+  always: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: AzureCLI@2
+  displayName: 'Generate Azure DevOps Inventory'
+  inputs:
+    azureSubscription: 'azure-devops-inventory-tool'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      URL="$(System.CollectionUri)"
+      ORG_NAME=${URL#https://dev.azure.com/}
+      ORG_NAME=${ORG_NAME%/}
+      echo "Organization name is: $ORG_NAME"
+
+      dotnet tool restore \
+        && dotnet AZDOI inventory repositories $ORG_NAME "$(Build.ArtifactStagingDirectory)" --entra-id-auth --run-in-parallel \
+        && echo '##vso[artifact.upload artifactname=AzureDevOpsDocs]$(Build.ArtifactStagingDirectory)'
